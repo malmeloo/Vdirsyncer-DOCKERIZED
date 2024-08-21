@@ -8,6 +8,7 @@ ARG ALPINE_VERSION="3.19.1" \
         PIPX_VERSION="1.4.3" \
         PYTHON_VERSION="3.11.6" \
         PYTHON_VERSION_SHORT="3.11" \
+        APPRISE_VERSION="1.7.2" \
         VDIRSYNCER_VERSION="0.19.2"
 
 # Set up Environment
@@ -33,14 +34,26 @@ ENV VDIRSYNCER_CONFIG=/vdirsyncer/config \
         VDIRSYNCER_USER="vdirsyncer" \
         # Set cron file
         CRON_FILE="/etc/crontabs/vdirsyncer" \
-        # Script to run after sync complete
+        # Set script path to run after sync complete
         POST_SYNC_SCRIPT_FILE= \
         # Set Pipx home
         PIPX_HOME="/opt/pipx" \
         # Set Pipx bin dir
         PIPX_BIN_DIR="/usr/local/bin" \
-        # Supercronic log level
-        LOG_LEVEL=
+        # Set Supercronic log level
+        LOG_LEVEL= \
+        # Set Apprise Status
+        APPRISE_ENABLED=false \
+        # Set Apprise Logfile
+        APPRISE_LOG="/tmp/apprise_log" \
+        # Set Apprise URL
+        APPRISE_URL= \
+        # Set Apprise Title
+        APPRISE_TITLE= \
+        # Set Apprise Body
+        APPRISE_BODY= \
+        # Set Apprise Only On Error
+        APPRISE_ONLY_ON_ERROR=true
 
 # Update and install packages
 RUN apk update \
@@ -69,7 +82,9 @@ RUN apk update \
         # Cron Update
         #&& apk add --update busybox-suid \
         # Supercronic instead of Cron (for cronjobs)
-        && apk add --no-cache supercronic 
+        && apk add --no-cache supercronic \
+        # Clear cache
+        && rm -rf /var/cache/apk/*
 
 # Set up User
     # Set up Group
@@ -93,7 +108,7 @@ RUN addgroup -g "${GID}" "${VDIRSYNCER_USER}" \
         && touch "${CRON_FILE}"
 
 # Full sudo access for vdirsyncer user
-#RUN echo "vdirsyncer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/vdirsyncer
+# RUN echo "vdirsyncer ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/vdirsyncer
 
 # Set up Workdir
 WORKDIR /vdirsyncer
@@ -112,7 +127,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=1 \
 # Labeling
 LABEL maintainer="Bleala" \
         version="${IMAGE_VERSION}" \
-        description="Vdirsyncer ${VDIRSYNCER_VERSION} on Alpine ${ALPINE_VERSION}, Pip ${PIP_VERSION}, Pipx ${PIPX_VERSION}, Python ${PYTHON_VERSION}" \
+        description="Vdirsyncer ${VDIRSYNCER_VERSION} with Apprise ${APPRISE_VERSION} on Alpine ${ALPINE_VERSION}, Python ${PYTHON_VERSION}, Pip ${PIP_VERSION}, Pipx ${PIPX_VERSION}" \
         org.opencontainers.image.source="https://github.com/Bleala/Vdirsyncer-DOCKERIZED" \
         org.opencontainers.image.url="https://github.com/Bleala/Vdirsyncer-DOCKERIZED"
 
@@ -129,6 +144,11 @@ RUN PIPX_HOME="${PIPX_HOME}" PIPX_BIN_DIR="${PIPX_BIN_DIR}" pipx install "vdirsy
         # Update Path for Pipx
         && PIPX_HOME="${PIPX_HOME}" PIPX_BIN_DIR="${PIPX_BIN_DIR}" pipx ensurepath
 
+
+# Apprise installation
+RUN PIPX_HOME="${PIPX_HOME}" PIPX_BIN_DIR="${PIPX_BIN_DIR}" pipx install "apprise==${APPRISE_VERSION}" \
+        # Update Path for Pipx
+        && PIPX_HOME="${PIPX_HOME}" PIPX_BIN_DIR="${PIPX_BIN_DIR}" pipx ensurepath
 
 # Fix Google redirect uri
 # For Vdirsyncer 0.19.1 (Pip Install) 
